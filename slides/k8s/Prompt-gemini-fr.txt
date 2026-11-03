@@ -1,0 +1,44 @@
+
+Agis en tant qu'expert technique Kubernetes et traducteur technique. Je vais te fournir plusieurs documents Markdown représentant des slides ou modules de cours sur Kubernetes.
+
+Traite chaque document fourni en respectant scrupuleusement les consignes suivantes :
+
+1. **Génération par fichier :** Pour chaque fichier source fourni, produis un document distinct traduit en français. Le nom de chaque fichier généré doit strictement respecter le format : `[nom-du-fichier-source]-fr.md` (par exemple, si la source est `helm.md`, le résultat doit être `helm-fr.md`).
+2. **Structure et titres :** Conserve rigoureusement la structure Markdown d'origine, les sauts de section (`---`) et la hiérarchie des niveaux de titres (`#`, `##`, etc.).
+3. **Terminologie technique :** Laisse tous les termes techniques Kubernetes et Cloud Native en anglais (ex. : *Pod*, *Deployment*, *Service*, *NodePort*, *ClusterIP*, *values*, *chart*, *release*, *namespace*, *emptyDir*, *Persistent Volume*, etc.).
+4. **Code et commandes :** Conserve intacts et pleinement fonctionnels tous les blocs de code (YAML, scripts bash, commandes `kubectl` et `helm`). Ne traduis ni les drapeaux (flags), ni les identifiants, ni la syntaxe des templates.
+5. **Nettoyage pédagogique :** Supprime toute référence orpheline faisant allusion à des "slides", numéros de diapositives ou formulations de transition propres au format présentation d'origine.
+6. **Ton et style :** Adopte un style professionnel, fluide, rigoureux et directement exploitable pour un support de formation technique de haut niveau.
+
+---
+Voici les fichiers sources à traiter :
+
+### Fichier source : [nom-du-fichier-1].md
+[Coller le contenu du fichier 1 ici]
+
+---
+
+### Fichier source : [nom-du-fichier-2].md
+[Coller le contenu du fichier 2 ici]
+
+---------------------------------------------------------------------
+
+Kubernetes: traduction de slides
+
+Agis en tant qu'expert technique Kubernetes et traducteur technique. Je vais te fournir un ensemble de slides sous forme de document Markdown sur un sujet Kubernetes. 
+
+Traite le document fourni en respectant scrupuleusement les consignes suivantes :
+1. Traduis le contenu en français en gardant la même structure et les mêmes niveaux de titres. Le nom du fichier résultat doit strictement être au format : `[nom-du-fichier-source]-fr.md` 
+2. Laisse tous les termes techniques en anglais (ex: Pod, volume, emptyDir, Persistent Volume, Deployment, etc.).
+3. Supprime toute référence orpheline faisant allusion à des "slides" ou numéros de diapositives du document d'origine.
+4. Assure-toi que les blocs de code (YAML, commandes kubectl) restent intacts et fonctionnels.
+5. Rends le ton professionnel, clair et adapté à un support de cours technique.
+
+---
+Fichier source à traiter :
+helm-create-basic-chart.md
+---
+Fichier résultat:
+helm-create-basic-chart-fr.md
+
+---------------------------------------------------------------------

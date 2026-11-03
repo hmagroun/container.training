@@ -11,8 +11,14 @@ class: title, in-person
 @@TITLE@@<br/></br>
 
 .footnote[
+Hedi MAGROUN - version 2026.10.27
+]
+
+<!--
+.footnote[
 **Slides[:](https://www.youtube.com/watch?v=h16zyxiwDLY) @@SLIDES@@**
 ]
+-->
 
 <!--
 WiFi: **Something**<br/>

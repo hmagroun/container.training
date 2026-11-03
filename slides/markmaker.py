@@ -54,7 +54,7 @@ def insertslide(markdown, title):
 
 class: pic
 
-.interstitial[![Image separating from the next part]({interstitial})]
+.interstitial[![]({interstitial})]
 
 ---
 
