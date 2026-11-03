@@ -1,5 +1,5 @@
 
-# Persistent Volumes – Provisionnement Dynamique
+# LAB : Persistent Volumes – Provisionnement Dynamique
 
 ### Objectifs du Lab
 

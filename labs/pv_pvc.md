@@ -1,5 +1,5 @@
 
-# Persistent Volumes – Provisionnement manuel
+# LAB : Persistent Volumes – Provisionnement manuel
 
 ### Objectifs du Lab
 

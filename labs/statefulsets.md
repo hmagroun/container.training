@@ -1,6 +1,6 @@
 
 
-# Lab Kubernetes : Déploiement (Stateless) vs StatefulSet (Stateful)
+# LAB : Déploiement (Stateless) vs StatefulSet (Stateful)
 
 ### Objectifs du Lab
 
