@@ -1,36 +1,46 @@
 
 
-# Lab Kubernetes : StatefulSet vs Deployment (Identité, Ordre et Stockage)
+# Lab Kubernetes : Déploiement (Stateless) vs StatefulSet (Stateful)
 
 ### Objectifs du Lab
 
-1. **Partie 1 :** Démonstration de l'identité et de l'ordre de déploiement/suppression (Pods interchangeables vs Pods ordonnés).
-2. **Partie 2 :** Gestion du stockage persistant (Volume unique partagé vs Volumes dédiés par Pod via `volumeClaimTemplates`).
+1. **Partie 1 :** Mettre en évidence la différence d'identité, de nommage et d'ordre de démarrage/arrêt entre **app1** (Deployment / Stateless) et **app2** (StatefulSet / Stateful) avec Nginx et leurs services dédiés (**service1** et **service2**).
+2. **Partie 2 :** Étudier la gestion du stockage persistant, illustrer la limite du partage d'un volume RWO sur un Deployment, et configurer le stockage dédié par réplique pour **app2** via les `volumeClaimTemplates`.
+3. **Partie 3 :** Auto-inspection et découverte réseau : se connecter directement à l'intérieur de la première instance (`app2-0`) pour vérifier son identité et exécuter les commandes `nslookup` (via les FQDNs complets) vers le Headless Service et les autres pairs.
 
 ---
 
-## Partie 1 : Ordre de démarrage/arrêt et identité des Pods
+## Partie 1 : Ordre de démarrage/arrêt, identité et services réseau
 
-Dans un **Deployment**, les Pods sont interchangeables (stateless) et reçoivent des noms aléatoires. Dans un **StatefulSet**, chaque Pod possède un nom fixe et prévisible (`<nom-statefulset>-0`, `<nom-statefulset>-1`, etc.) et le démarrage/arrêt suit un ordre séquentiel strict.
+### 1. Application Stateless (`app1`) avec son Service classique (`service1`)
 
-### 1. Test du comportement d'un Deployment
-
-Créez le fichier `deploy-demo.yaml` :
+Créez le fichier `app1.yaml` :
 
 ```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: service1
+spec:
+  ports:
+  - port: 80
+    name: web
+  selector:
+    app: app1
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: deploy-app
+  name: app1
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: deploy-app
+      app: app1
   template:
     metadata:
       labels:
-        app: deploy-app
+        app: app1
     spec:
       containers:
       - name: nginx
@@ -38,63 +48,49 @@ spec:
 
 ```
 
-Appliquez et observez le déploiement :
+Appliquez et observez :
 
 ```bash
-kubectl apply -f deploy-demo.yaml
-kubectl get pods -l app=deploy-app -w
+kubectl apply -f app1.yaml
+kubectl get pods -l app=app1 -w
 
 ```
 
-* **Observation :** Les 3 Pods sont créés en parallèle avec des suffixes aléatoires (ex: `deploy-app-5d86b-abcde`, `deploy-app-5d86b-xyz12`).
-
-Supprimez le Deployment :
-
-```bash
-kubectl delete -f deploy-demo.yaml
-kubectl get pods -l app=deploy-app -w
-
-```
-
-* **Observation :** Tous les Pods sont détruits simultanément sans ordre précis.
+* **Observation :** Les pods démarrent en parallèle avec des noms aléatoires.
 
 ---
 
-### 2. Test du comportement d'un StatefulSet
+### 2. Application Stateful (`app2`) avec son Headless Service (`service2`)
 
-Pour fonctionner correctement, un StatefulSet nécessite d'abord la création d'un **Headless Service** (`clusterIP: None`) pour assurer le nommage réseau individuel.
-
-Créez le fichier `statefulset-demo.yaml` :
+Créez le fichier `app2.yaml` :
 
 ```yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: nginx-service
-  labels:
-    app: stateful-app
+  name: service2
 spec:
   ports:
   - port: 80
     name: web
-  clusterIP: None
+  clusterIP: None  # <-- Headless Service indispensable pour le StatefulSet
   selector:
-    app: stateful-app
+    app: app2
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: stateful-app
+  name: app2
 spec:
-  serviceName: "nginx-service"
+  serviceName: "service2"
   replicas: 3
   selector:
     matchLabels:
-      app: stateful-app
+      app: app2
   template:
     metadata:
       labels:
-        app: stateful-app
+        app: app2
     spec:
       containers:
       - name: nginx
@@ -102,89 +98,78 @@ spec:
 
 ```
 
-Appliquez et observez attentivement l'ordre de démarrage dans un second terminal :
+Appliquez et observez le démarrage séquentiel strict (`app2-0`, puis `app2-1`, puis `app2-2`) :
 
 ```bash
-kubectl apply -f statefulset-demo.yaml
-kubectl get pods -l app=stateful-app -w
+kubectl apply -f app2.yaml
+kubectl get pods -l app=app2 -w
 
 ```
 
-* **Observation du démarrage :**
-1. `stateful-app-0` est créé en premier et passe à l'état `Running`.
-2. `stateful-app-1` est créé seulement après que le précédent est prêt.
-3. `stateful-app-2` est créé en dernier.
-
-
-
-Supprimez le StatefulSet et observez l'ordre d'arrêt :
+Nettoyez ces premiers manifestes avant de passer à la gestion du stockage :
 
 ```bash
-kubectl delete -f statefulset-demo.yaml
-kubectl get pods -l app=stateful-app -w
+kubectl delete -f app1.yaml
+kubectl delete -f app2.yaml
 
 ```
 
-* **Observation de l'arrêt (Ordre inverse strict) :**
-1. `stateful-app-2` est arrêté en premier.
-2. Puis `stateful-app-1`.
-3. Enfin `stateful-app-0`.
+---
 
+## Partie 2 : Gestion du stockage persistant (Deployment vs StatefulSet)
 
+### 1. La limite du Deployment avec un volume persistant partagé
+
+Si vous associez un PVC classique en mode **`ReadWriteOnce` (RWO)** à un Deployment d'**app1** comportant plusieurs répliques (Nginx), vous faites face à une impasse technique :
+
+* Soit les pods se bloquent avec une erreur **`Multi-Attach error`** car un stockage RWO ne peut pas être monté en écriture par plusieurs pods simultanément.
+* Soit, si l'infrastructure le permettait, toutes les répliques pointeraient vers le même dossier et s'écraseraient mutuellement sans isolation. Un Deployment n'est pas conçu pour attribuer un disque indépendant par réplique.
 
 ---
 
-## Partie 2 : Gestion du stockage persistant (Volumes partagés vs VolumeClaimTemplates)
+### 2. Le StatefulSet et les `volumeClaimTemplates` pour `app2`
 
-### 1. Limite du Deployment avec un volume persistant
+Avec le StatefulSet **app2**, nous utilisons les `volumeClaimTemplates`. Kubernetes génère automatiquement **un PVC individuel et dédié pour chaque réplique** (`data-app2-0`, `data-app2-1`, `data-app2-2`).
 
-Si vous attachez un PVC classique à un Deployment à 3 répliques (avec `ReadWriteOnce`), soit les répliques échouent car elles ne peuvent pas accéder au même disque distant simultanément, soit toutes les répliques pointent exactement vers le même dossier et partagent les mêmes fichiers. Il n'y a **pas de stockage individuel** par Pod.
-
----
-
-### 2. Le StatefulSet et les `volumeClaimTemplates`
-
-Avec un StatefulSet, on utilise un modèle de réclamation (`volumeClaimTemplates`). Kubernetes va générer automatiquement **un PVC dynamique dédié pour chaque Pod** (`storage-stateful-app-0`, `storage-stateful-app-1`, etc.).
-
-Créez le fichier `stateful-storage.yaml` :
+Créez le fichier `app2-storage.yaml` :
 
 ```yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: web-service
+  name: service2
 spec:
   ports:
   - port: 80
     name: web
   clusterIP: None
   selector:
-    app: web-store
+    app: app2
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: web-store
+  name: app2
 spec:
-  serviceName: "web-service"
+  serviceName: "service2"
   replicas: 3
   selector:
     matchLabels:
-      app: web-store
+      app: app2
   template:
     metadata:
       labels:
-        app: web-store
+        app: app2
     spec:
       containers:
       - name: nginx
         image: nginx:alpine
         volumeMounts:
-        - name: storage
+        - name: data
           mountPath: /usr/share/nginx/html
   volumeClaimTemplates:
   - metadata:
-      name: storage
+      name: data
     spec:
       accessModes: [ "ReadWriteOnce" ]
       resources:
@@ -196,85 +181,87 @@ spec:
 Appliquez le fichier :
 
 ```bash
-kubectl apply -f stateful-storage.yaml
+kubectl apply -f app2-storage.yaml
 
 ```
 
-#### Étape A : Inspection des volumes créés
-
-Une fois les Pods prêts, vérifiez les PVC générés automatiquement :
+Vérifiez les PVC générés automatiquement :
 
 ```bash
-kubectl get pvc,pv
-
-```
-
-* **Observation :** 3 PVC distincts ont été instanciés dynamiquement : `storage-web-store-0`, `storage-web-store-1`, et `storage-web-store-2`.
-
-#### Étape B : Écriture de données personnalisées dans chaque Pod
-
-Écrivez une donnée unique dans le volume propre à chaque réplique :
-
-```bash
-kubectl exec web-store-0 -- sh -c "echo 'Donnees du Pod 0' > /usr/share/nginx/html/index.html"
-kubectl exec web-store-1 -- sh -c "echo 'Donnees du Pod 1' > /usr/share/nginx/html/index.html"
-kubectl exec web-store-2 -- sh -c "echo 'Donnees du Pod 2' > /usr/share/nginx/html/index.html"
-
-```
-
-Vérifiez que chaque Pod lit bien son propre fichier :
-
-```bash
-kubectl exec web-store-0 -- cat /usr/share/nginx/html/index.html
-kubectl exec web-store-1 -- cat /usr/share/nginx/html/index.html
-kubectl exec web-store-2 -- cat /usr/share/nginx/html/index.html
-
-```
-
-#### Étape C : Test de Scale-Down puis Scale-Up (Persistance de l'affectation)
-
-Réduisez le nombre de répliques à 1 (Scale-Down) :
-
-```bash
-kubectl scale statefulset web-store --replicas=1
-
-```
-
-Vérifiez les Pods et les PVC :
-
-```bash
-kubectl get pods -l app=web-store
 kubectl get pvc
 
 ```
 
-* **Observation importante :** Les Pods `web-store-1` et `web-store-2` ont été supprimés, **mais leurs PVC `storage-web-store-1` et `storage-web-store-2` restent intacts** dans le cluster.
+* **Observation :** 3 PVC distincts sont créés (`data-app2-0`, `data-app2-1`, `data-app2-2`).
 
-Remontez à 3 répliques (Scale-Up) :
-
-```bash
-kubectl scale statefulset web-store --replicas=3
-
-```
-
-Attendez que les Pods redémarrent et contrôlez le contenu des fichiers :
+Vous pouvez personnaliser la page web lue par chaque réplique Nginx pour prouver leur isolation :
 
 ```bash
-kubectl exec web-store-1 -- cat /usr/share/nginx/html/index.html
-kubectl exec web-store-2 -- cat /usr/share/nginx/html/index.html
+kubectl exec app2-0 -- sh -c "echo 'Bienvenue sur App2 Instance 0' > /usr/share/nginx/html/index.html"
+kubectl exec app2-1 -- sh -c "echo 'Bienvenue sur App2 Instance 1' > /usr/share/nginx/html/index.html"
+kubectl exec app2-2 -- sh -c "echo 'Bienvenue sur App2 Instance 2' > /usr/share/nginx/html/index.html"
 
 ```
-
-* **Résultat :** `web-store-1` récupère exactement le PVC `storage-web-store-1` et relit `Donnees du Pod 1`. L'affectation entre l'index du Pod et son stockage dédié a été conservée sans aucune perte.
 
 ---
 
-## Partie 3 : Nettoyage de l'environnement
+## Partie 3 : Auto-inspection et découverte des pairs depuis l'intérieur d'une instance
+
+Connectons-nous directement à la première instance de l'application (`app2-0`) pour inspecter son identité et exécuter les commandes de résolution réseau (via les **FQDNs complets**).
+
+### 1. Se connecter au premier pod du StatefulSet
 
 ```bash
-kubectl delete -f stateful-storage.yaml
-kubectl delete pvc -l app=web-store
+kubectl exec -it app2-0 -- sh
 
 ```
 
-*(Remarque : la suppression d'un StatefulSet ne détruit pas automatiquement les PVC générés par les `volumeClaimTemplates` afin d'éviter les pertes de données accidentelles en production. Il faut les supprimer explicitement).*
+### 2. Reconnaître son propre nom d'hôte (`hostname`)
+
+Une fois à l'intérieur du conteneur, vérifiez l'identité de l'instance :
+
+```bash
+hostname
+
+```
+
+* **Résultat :** Affiche `app2-0`, prouvant que l'instance connaît son propre indice de manière statique et prévisible.
+
+### 3. Interroger le Headless Service et les pairs avec `nslookup` (via FQDN)
+
+Depuis l'intérieur de ce même pod, testez la résolution globale du Headless Service :
+
+```bash
+nslookup service2.default.svc.cluster.local
+
+```
+
+*(Cette commande renvoie la liste complète des adresses IP de toutes les répliques associées).*
+
+Testez ensuite la résolution individuelle de chaque pair en utilisant son FQDN complet :
+
+```bash
+nslookup app2-0.service2.default.svc.cluster.local
+nslookup app2-1.service2.default.svc.cluster.local
+nslookup app2-2.service2.default.svc.cluster.local
+
+```
+
+* **Résultat :** Chaque réplique résout correctement sa propre adresse IP ainsi que celles de ses congénères.
+
+Quittez le conteneur :
+
+```bash
+exit
+
+```
+
+---
+
+## Nettoyage de l'environnement
+
+```bash
+kubectl delete -f app2-storage.yaml
+kubectl delete pvc -l app=app2
+
+```
