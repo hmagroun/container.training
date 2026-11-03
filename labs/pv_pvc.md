@@ -1,12 +1,12 @@
 
-# Lab Kubernetes : Le Provisionnement Manuel (PV, PVC et Politiques de Récupération)
+# Persistent Volumes – Provisionnement manuel
 
 ### Objectifs du Lab
 
 1. Créer un PersistentVolume (PV) et un PersistentVolumeClaim (PVC) en mode **manuel strict** (sans passer par une StorageClass automatique).
 2. Lier directement un PVC à un PV ciblé en utilisant `volumeName`.
 3. Comparer les deux politiques de récupération : **`Delete`** (suppression automatique) et **`Retain`** (conservation).
-4. Apprendre à réexploiter proprement un volume en état `Released` en purgeant son champ `claimRef` et en vérifiant la persistance des données avec un nouveau Pod.
+4. Apprendre à réexploiter proprement un volume en état `Released` en purgeant son champ `claimRef`, puis en le liant à un nouveau PVC (`pvc22`) et un nouveau Pod (`pod22`) pour vérifier la persistance des données.
 
 ---
 
@@ -182,32 +182,47 @@ kubectl get pv,pvc
 
 ```
 
-### 2. Écriture de données via un Pod temporaire
+### 2. Écriture de données via le pod `pod2`
 
-Déployez un pod pour écrire une information persistante dans ce volume :
+Créez un fichier `pod2.yaml` pour monter `pvc2` et écrire des données persistantes :
 
-```bash
-kubectl run pod-temp --image=busybox --restart=Never -- sleep 3600
-# (Ou attachez un pod de test existant lié à pvc2)
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod2
+spec:
+  containers:
+  - name: app
+    image: busybox:latest
+    command: ["sleep", "3600"]
+    volumeMounts:
+    - mountPath: /data
+      name: stock
+  volumes:
+  - name: stock
+    persistentVolumeClaim:
+      claimName: pvc2
 
 ```
 
-*Note :* Pour faire simple, vous pouvez monter `pvc2` dans un pod, écrire un fichier :
+Appliquez le pod et écrivez le fichier de test :
 
 ```bash
-kubectl exec -it pod-temp -- sh -c "echo 'Donnees critiques a conserver' > /data/info.txt"
+kubectl apply -f pod2.yaml
+kubectl exec -it pod2 -- sh -c "echo 'Donnees critiques a conserver' > /data/info.txt"
 
 ```
 
-Puis supprimez le pod temporaire et le PVC `pvc2` :
+### 3. Suppression du Pod et du PVC, puis observation de l'état `Released`
+
+Supprimez `pod2` et `pvc2` :
 
 ```bash
-kubectl delete pod pod-temp
+kubectl delete pod pod2
 kubectl delete pvc pvc2
 
 ```
-
-### 3. Observation de l'état `Released`
 
 Vérifiez l'état du PV :
 
@@ -241,13 +256,13 @@ kubectl get pv
 
 
 *Résultat :* `pv2` repasse à l'état **`Available`**.
-3. **Liaison à un nouveau PVC (`pvc3`) :**
-Créez un nouveau fichier `pvc3.yaml` pointant vers ce même PV :
+3. **Liaison à un nouveau PVC (`pvc22`) :**
+Créez un nouveau fichier `pvc22.yaml` pointant vers ce même PV :
 ```yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: pvc3
+  name: pvc22
 spec:
   accessModes:
     - ReadWriteOnce
@@ -262,18 +277,18 @@ spec:
 
 Appliquez-le :
 ```bash
-kubectl apply -f pvc3.yaml
+kubectl apply -f pvc22.yaml
 
 ```
 
 
-4. **Déploiement de `pod2` et récupération des données :**
-Créez un fichier `pod2.yaml` utilisant ce nouveau `pvc3` :
+4. **Déploiement de `pod22` et récupération des données :**
+Créez un fichier `pod22.yaml` utilisant ce nouveau `pvc22` :
 ```yaml
 apiVersion: v1
 kind: Pod
 metadata:
-  name: pod2
+  name: pod22
 spec:
   containers:
   - name: app
@@ -285,21 +300,21 @@ spec:
   volumes:
   - name: stock
     persistentVolumeClaim:
-      claimName: pvc3
+      claimName: pvc22
 
 ```
 
 
-Appliquez `pod2.yaml` :
+Appliquez `pod22.yaml` :
 ```bash
-kubectl apply -f pod2.yaml
+kubectl apply -f pod22.yaml
 
 ```
 
 
 Vérifiez que le fichier initial est bien présent et intact :
 ```bash
-kubectl exec -it pod2 -- cat /data/info.txt
+kubectl exec -it pod22 -- cat /data/info.txt
 
 ```
 
