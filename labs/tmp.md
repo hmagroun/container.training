@@ -1,5 +1,5 @@
 
-# Lab Kubernetes : Le Provisionnement Manuel (PV, PVC et Politiques de Récupération)
+# Persistent Volumes – Provisionnement manuel
 
 ### Objectifs du Lab
 
