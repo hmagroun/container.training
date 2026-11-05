@@ -168,7 +168,7 @@ kubectl apply -f pod-hostpath.yaml
 
 3. **Vérification (Le piège de l'infrastructure) :**
 * Si vous êtes sur un cluster KinD, vous pouvez entrer directement dans le conteneur Docker du nœud Worker (`docker exec -it <nom-du-noeud-kind> sh`) pour constater que le fichier `/tmp/kubernetes-hostpath/test-noeud.txt` a bien été écrit physiquement sur le disque de la machine hôte.
-* **Discutez-en avec vos étudiants :** *Que se passerait-il si ce Pod tombait en panne et était redémarré par Kubernetes sur un autre nœud du cluster ?* Le fichier ne serait plus accessible, car il est physiquement bloqué sur le disque du premier nœud. C'est l'anti-pattern par excellence pour les applications distribuées, mais c'est très utile pour des agents d'infrastructure (comme Prometheus Node Exporter ou des collecteurs de logs basés sur les fichiers `/var/log` de l'hôte).
+* *Que se passerait-il si ce Pod tombait en panne et était redémarré par Kubernetes sur un autre nœud du cluster ?* Le fichier ne serait plus accessible, car il est physiquement bloqué sur le disque du premier nœud. C'est l'anti-pattern par excellence pour les applications distribuées, mais c'est très utile pour des agents d'infrastructure (comme Prometheus Node Exporter ou des collecteurs de logs basés sur les fichiers `/var/log` de l'hôte).
 
 
 
