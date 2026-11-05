@@ -1,18 +1,3 @@
-## Assembler tous les concepts
-
-- Nous souhaitons exécuter ce cluster Consul *et* assurer la persistance effective des données
-
-- Nous allons utiliser un StatefulSet qui exploitera des PV et PVC
-
-- Si nous disposons d'un provisioner dynamique :
-
-  *le cluster démarrera immédiatement*
-
-- Si nous n'avons pas de provisioner dynamique :
-
-  *nous devrons créer les Persistent Volumes manuellement*
-
----
 
 ## Persistent Volume Claims et Stateful sets
 

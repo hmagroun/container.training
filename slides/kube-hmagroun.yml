@@ -130,7 +130,7 @@ content:
   #- k8s/prometheus-stack.md
 -
   - k8s/statefulsets-fr-hm.md
-  - k8s/consul-fr-hm.md
+###  - k8s/consul-fr-hm.md
   - k8s/pv-pvc-sc-fr-hm.md
   - k8s/volume-claim-templates-fr-hm.md
   #- k8s/portworx.md
